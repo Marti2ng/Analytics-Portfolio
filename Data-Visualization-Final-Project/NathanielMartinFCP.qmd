@@ -1,0 +1,158 @@
+
+# Average Review Graph
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+reviews_data <- read.csv('platform_economy_reviews.csv')
+
+#Convert 'time' to date
+reviews_data$time <- as.Date(paste0(reviews_data$time, "-01"))
+
+#Filter out rows with missing or invalid values in bad_food or bad_service
+reviews_data_clean <- reviews_data %>%
+  filter(!is.na(bad_food), !is.na(bad_service), is.finite(bad_food), is.finite(bad_service))
+
+#Calculate average bad_food and bad_service per time period and location
+avg_reviews_over_time <- reviews_data_clean %>%
+  group_by(time, location) %>%  # Group by time and location
+  summarise(
+    avg_bad_food = mean(bad_food, na.rm = TRUE),
+    avg_bad_service = mean(bad_service, na.rm = TRUE)
+  )
+
+#Capitalize location column for faceting
+avg_reviews_over_time$location <- toupper(avg_reviews_over_time$location)
+
+ggplot(avg_reviews_over_time, aes(x = time)) +
+  #Plot for bad_food with LOESS smoothing
+  geom_smooth(aes(y = avg_bad_food, color = "Bad Food"), method = "loess", se = FALSE, size = 1) +
+  geom_smooth(aes(y = avg_bad_service, color = "Bad Service"), method = "loess", se = FALSE, size = 1) +
+  labs(
+    title = "Negative Reviews in Dallas and Austin Restaurants",
+    x = " ",
+    y = "Average Rating",
+    color = " "
+  ) +
+  scale_color_manual(values = c("Bad Food" = "springgreen3", "Bad Service" = "orchid")) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    legend.title = element_text(size = 10, face = "bold"),
+    legend.text = element_text(size = 9),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_line(color = "grey90")
+  ) +
+  facet_wrap(~ location, ncol = 1) +  #Facet by location
+  geom_vline(aes(xintercept = as.Date("2016-05-01"), linetype = "Uber/Lyft Exit Austin"), 
+             color = "slategray2", size = 0.8) +
+  geom_vline(aes(xintercept = as.Date("2017-05-01"), linetype = "Uber/Lyft Re-enter Austin"), 
+             color = "rosybrown2", size = 0.8) +
+  scale_linetype_manual(
+    values = c("Uber/Lyft Exit Austin" = "dashed", "Uber/Lyft Re-enter Austin" = "dashed"),
+    guide = guide_legend(title = "Event")
+  ) +
+  scale_x_date(
+    date_breaks = "6 months",
+    date_minor_breaks = "1 month",
+    date_labels = "%b %Y"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_line(color = "grey90"),
+    legend.position = "top",
+    legend.title = element_text(size = 10, face = "bold"),
+    legend.text = element_text(size = 9),
+    legend.background = element_rect(
+      color = "black",
+      size = 0.5,
+      fill = "white"
+    )
+  )
+```
+
+# Average Tenure
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+data <- read.csv('platform_economy_mobility.csv')
+
+#Convert 'time' to date
+data$time <- as.Date(paste0(data$time, "-01"))
+
+#Group by time, dma, restaurant_cat, calculate average tenure
+avg_tenure_over_time <- data %>%
+  filter(dma %in% c('AUSTIN', 'DALLAS')) %>%
+  group_by(time, dma, restaurant_cat) %>%
+  summarise(avg_tenure = mean(tenure, na.rm = TRUE))
+
+#Convert 'quit' to 0 or 1
+data <- data %>%
+  mutate(quit = ifelse(quit == "True", 1, 0))
+
+#Calculate counts of quits for geom_rug
+quits_count <- data %>%
+  filter(dma %in% c('AUSTIN')) %>%
+  group_by(time, dma, restaurant_cat) %>%
+  summarise(num_quits = sum(quit, na.rm = TRUE))
+
+ggplot(avg_tenure_over_time, aes(x = time, y = avg_tenure, color = dma)) +
+  geom_line() +
+  labs(title = "How long do service workers last?",
+  subtitle = "Rug plot represents volume of worker quits per month in Austin",
+       x = " ",
+       y = "Average Tenure (Months)",
+       color = " ") +
+  facet_wrap(~ restaurant_cat, ncol = 1) +
+geom_vline(aes(xintercept = as.Date("2016-05-01"), linetype = "Uber/Lyft Exit Austin"), 
+             color = "slategray2", size = 0.8) +
+  geom_vline(aes(xintercept = as.Date("2017-05-01"), linetype = "Uber/Lyft Re-enter Austin"), 
+             color = "rosybrown2", size = 0.8) +
+  scale_linetype_manual(
+    values = c("Uber/Lyft Exit Austin" = "dashed", "Uber/Lyft Re-enter Austin" = "dashed"),
+    guide = guide_legend(title = "Event")
+  ) +
+  scale_y_continuous(
+    limits = c(0, NA),
+    expand = expansion(mult = c(0.0, 0.05))
+  ) +
+  scale_x_date(
+    date_breaks = "6 months",
+    date_minor_breaks = "1 month",
+    date_labels = "%b %Y"
+  ) +
+  geom_rug(
+    data = quits_count,
+    aes(x = time, y = 0, color = dma, size = num_quits),
+    inherit.aes = FALSE,
+    sides = "b",
+  ) +
+  scale_size_continuous(
+    range = c(0.5, 3),
+    guide = "none"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_line(color = "grey90"),
+    legend.position = "top",
+    legend.title = element_text(size = 10, face = "bold"),
+    legend.text = element_text(size = 9),
+    legend.background = element_rect(
+      color = "black",
+      size = 0.5,
+      fill = "white"
+  ),
+    plot.subtitle = element_text(
+      color = "darkgrey",
+      size = 10,
+      face = "italic"
+    )
+  )
+```

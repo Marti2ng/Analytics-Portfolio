@@ -1,0 +1,190 @@
+
+```{r}
+library(ggplot2)
+library(tidyr)
+library(readr)
+library(dplyr)
+library(readr)
+library(hrbrthemes)
+library(ggthemes)
+library(tidyverse)
+```
+
+### https://www.kaggle.com/datasets/aravinii/house-price-prediction-treated-dataset/data
+
+```{r}
+ht = read.csv("/.../.../.../df_test.csv")
+```
+
+```{r}
+ht <- ht %>%
+  mutate(
+    has_basement = as.numeric(as.logical(has_basement)),
+    renovated = as.numeric(as.logical(renovated)),
+    nice_view = as.numeric(as.logical(nice_view)),
+    perfect_condition = as.numeric(as.logical(perfect_condition)),
+    has_lavatory = as.numeric(as.logical(has_lavatory)),
+    single_floor = as.numeric(as.logical(single_floor))
+  )
+```
+
+
+### Figure 1, Regression Lines for price by bedrooms/quality
+
+```{r}
+quartile_labels <- c("1" = "Quartile Zone 1", 
+                     "2" = "Quartile Zone 2", 
+                     "3" = "Quartile Zone 3", 
+                     "4" = "Quartile Zone 4")
+
+pleasant_colors <- c("1" = "#FF6F61",   # Coral
+                     "2" = "#008080",   # Teal
+                     "3" = "#DAA520",   # Goldenrod
+                     "4" = "#4169E1")   # Royal Blue
+
+ggplot(data = ht, aes(x = grade, y = price, color = factor(bedrooms))) +
+  geom_smooth(aes(color = factor(bedrooms)), method = "lm", se = FALSE) +
+  facet_wrap(~ quartile_zone, labeller = labeller(quartile_zone = quartile_labels)) +
+  labs(
+    title = "Is Construction Quality Valuable Across Neighborhoods?",
+    x = "Construction Quality",
+    y = "Sales Price (USD)",
+    color = "No. of Bedrooms",
+    caption = "Figure 1: Linear regression visualizing the relationship of construction quality and sales price
+    colored by number of bedrooms, faceted by quartile zone",
+    subtitle = "Exploring construction quality's effect on sales price"
+  ) +
+  scale_x_continuous(breaks = 1:5, labels = c("1", "2", "3", "4", "5")) + 
+  scale_y_continuous(labels = scales::comma) +
+  # Apply the pleasant color scale using hex codes
+  scale_color_manual(values = pleasant_colors) +
+  theme_minimal() +
+  theme(
+    # Set up panel border around each facet
+    panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+    # Adjust facet spacing for equal space between panels
+    panel.spacing = unit(1, "lines"),
+    # Remove major and minor gridlines on x-axis, keep major gridlines on y-axis only
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    # Center the title
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    # Increase space between axis titles and plot area
+    axis.title.x = element_text(margin = margin(t = 15), face = "bold"),
+    axis.title.y = element_text(margin = margin(r = 15), face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 10, face = "italic"),  # Center subtitle, change size and style
+    plot.caption = element_text(hjust = 0.5, size = 8, face = "italic"),  # Center subtitle, change size and style
+    # Adjust legend appearance
+    legend.text = element_text(size = 8),
+    legend.title = element_text(size = 9),
+    legend.key.size = unit(0.5, "cm"),
+    legend.spacing.y = unit(0.2, "cm")
+  ) +
+  # Reverse legend order
+  guides(color = guide_legend(reverse = TRUE))
+```
+
+### Figure 2, Boxplot, Renovation Status & Price
+
+```{r}
+# Custom labels for facet titles
+quartile_labels <- c("1" = "Quartile Zone 1", 
+                     "2" = "Quartile Zone 2", 
+                     "3" = "Quartile Zone 3", 
+                     "4" = "Quartile Zone 4")
+
+ggplot(data = ht, aes(x = factor(renovated), y = price, fill = factor(renovated))) +
+  geom_boxplot(alpha = 0.7) +
+  # Apply custom labels to facet titles
+  facet_wrap(~ quartile_zone, labeller = labeller(quartile_zone = quartile_labels)) +
+  labs(
+    title = "Profitability of Renovation?",
+    x = "Renovation Status",
+    y = "Sale Price (USD)",
+    fill = "Renovation Status",
+    caption = "Figure 2: Boxplot visualizing the effect of renovations on sales price, faceted by quartile zone",
+    subtitle = "Exploring the sales price and renovation status of each quartile zone"
+  ) +
+  # Remove x axis labels due to redundancy and simplicity
+  scale_x_discrete(labels = NULL) +
+  scale_y_continuous(labels = scales::comma) +
+  # Change legend labels and colors
+  scale_fill_manual(
+    values = c("0" = "salmon", "1" = "skyblue"),  # Customize colors if needed
+    labels = c("0" = "No", "1" = "Yes")           # Change legend labels
+  ) +
+  theme_minimal() +
+  theme(
+    # Remove x-axis major and minor gridlines
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    # Keep y-axis major gridlines and remove minor gridlines
+    panel.grid.minor.y = element_blank(),
+    # Add borders around each panel to act as y-axes
+    panel.border = element_rect(color = "grey80", fill = NA, size = 0.5),
+    # Center the title
+    plot.title = element_text(hjust = 0.5, size = 15, face = "bold"),
+    # Customize subtitle appearance
+    plot.subtitle = element_text(hjust = 0.5, size = 10, face = "italic"),  # Center subtitle, change size and style
+    plot.caption = element_text(hjust = 0.5, size = 8, face = "italic"),
+    # Increase space between axis titles and plot area
+    axis.title.x = element_text(margin = margin(t = 15), face = "bold"),  # Space below x-axis label
+    axis.title.y = element_text(margin = margin(r = 15), face = "bold"),  # Space to the right of y-axis label
+    # Style the facet strip text
+    strip.text = element_text(size = 10)
+  )
+
+```
+
+### Figure 3, Price seasonality, May 2014 - May 2015
+
+```{r}
+ht$date <- as.Date(ht$date)
+
+# Step 1: Create a month-year column for grouping and filter for data between May 2014 and May 2015
+seasonal_data <- ht %>%
+  mutate(
+    month_year = floor_date(date, "month")  # Round dates to the first day of the month
+  ) %>%
+  filter(month_year >= as.Date("2014-05-01") & month_year <= as.Date("2015-05-01")) %>%
+  group_by(month_year, quartile_zone) %>%
+  summarise(avg_price = mean(price, na.rm = TRUE)) %>%
+  ungroup()
+
+# Step 2: Plot the data with a continuous x-axis from May 2014 to May 2015
+ggplot(seasonal_data, aes(x = month_year, y = avg_price, color = factor(quartile_zone, levels = c(4, 3, 2, 1)), group = quartile_zone)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +
+  scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b %Y",
+    limits = as.Date(c("2014-05-01", "2015-05-01"))
+  ) +
+  labs(
+    title = "Housing Price Trends Throughout the Year",
+    x = "Month",
+    y = "Average Price (USD)",
+    color = "Quartile Zone",
+    caption = "Figure 3: Line graph exploring the monthly average prices, colored by quartile",
+    subtitle = "Visualizing the seasonal changes in sales price"
+  ) +
+  scale_y_continuous(labels = scales::comma, breaks = seq(300000, 700000, by = 50000)) +
+  theme_linedraw() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),  # Center and bold the title
+    panel.grid.major.x = element_blank(),                   # Remove x-axis major gridlines
+    panel.grid.minor.x = element_blank(),                   # Remove x-axis minor gridlines
+    panel.grid.minor.y = element_blank(),                   # Remove y-axis minor gridlines if desired
+    
+    # Add border around each facet with black color
+    panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+    
+    # Increase space between axis titles and plot area
+    axis.title.x = element_text(margin = margin(t = 15), face = "bold"),  # Space above x-axis label
+    axis.title.y = element_text(margin = margin(r = 15), face = "bold"),  # Space to the right of y-axis label
+    plot.subtitle = element_text(hjust = 0.5, size = 10, face = "italic"),
+    plot.caption = element_text(hjust = 0.5, size = 8, face = "italic"),
+    # Set plot background to be blank (white)
+    panel.background = element_blank()
+  )
+```
