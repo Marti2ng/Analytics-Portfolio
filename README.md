@@ -23,4 +23,4 @@ This repository showcases my analytics and data science projects, demonstrating 
 - Business Analytics & Strategy
 
 ## Contact
-Feel free to reach out for collaborations or opportunities!
+Feel free to reach out @ MartinNathanielGregory@gmail.com!
